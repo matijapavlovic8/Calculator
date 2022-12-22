@@ -3,9 +3,59 @@ package hr.fer.zemris.java.gui.layouts;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.LayoutManager2;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.TreeMap;
+import java.util.function.Function;
+
+/**
+ * CalcLayout class represents a Layout manager.
+ *
+ * @author MatijaPav
+ */
 
 public class CalcLayout implements LayoutManager2 {
+
+    /**
+     * Number of rows it {@code CalcLayout}
+     */
+    public static final int ROWS = 5;
+
+    /**
+     * Number of columns in {@code CalcLayout}
+     */
+    public static final int COLUMNS = 7;
+
+    /**
+     * Size of the gap between two components in a layout.
+     */
+    private int componentGap;
+
+    private Map<RCPosition, Component> components;
+
+    /**
+     * Creates a {@code CalcLayout} with no gaps between two components.
+     */
+    public CalcLayout(){
+        this(0);
+    }
+
+    /**
+     * Creates a {@code CalcLayout}
+     * @param componentGap size of the gap between two components.
+     */
+    public CalcLayout(int componentGap){
+        if(componentGap < 0)
+            throw new CalcLayoutException("Component gap can't be negative!");
+        this.componentGap = componentGap;
+        this.components = new HashMap<>();
+    }
     /**
      * Adds the specified component to the layout, using the specified
      * constraint object.
@@ -15,7 +65,25 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public void addLayoutComponent(Component comp, Object constraints) {
-        
+        Objects.requireNonNull(comp, "Component can't be null!");
+        Objects.requireNonNull(constraints, "Constraints can't be null!");
+        RCPosition pos;
+        if(constraints instanceof RCPosition){
+            pos = (RCPosition) constraints;
+        } else if(constraints instanceof String){
+            pos = RCPosition.parse((String) constraints);
+        } else {
+            throw new CalcLayoutException("Constraints must be instances of RCPosition or String class!");
+        }
+        int r = pos.getRow();
+        int s = pos.getColumn();
+        if(components.containsKey(pos))
+            throw new CalcLayoutException("Component with these constraints already exists!");
+        if((r < 1 || r > ROWS) || (s < 1 || s > COLUMNS) || (r == 1 && s > 1 && s < 6))
+            throw new CalcLayoutException("Can't create component with these constraints!");
+
+        this.components.put(pos, comp);
+
     }
 
     /**
@@ -31,7 +99,7 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public Dimension maximumLayoutSize(Container target) {
-        return null;
+        return layoutSize(target, Component::getMaximumSize);
     }
 
     /**
@@ -73,9 +141,7 @@ public class CalcLayout implements LayoutManager2 {
      * @param target the target container
      */
     @Override
-    public void invalidateLayout(Container target) {
-
-    }
+    public void invalidateLayout(Container target) {}
 
     /**
      * If the layout manager uses a per-component string,
@@ -88,7 +154,7 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public void addLayoutComponent(String name, Component comp) {
-
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -98,7 +164,10 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public void removeLayoutComponent(Component comp) {
-
+        Objects.requireNonNull(comp, "Can't remove null!");
+        if(!this.components.containsValue(comp))
+            throw new CalcLayoutException("Layout doesn't contain given component!");
+        this.components.values().remove(comp);
     }
 
     /**
@@ -113,7 +182,8 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public Dimension preferredLayoutSize(Container parent) {
-        return null;
+        return layoutSize(parent, Component::getPreferredSize);
+
     }
 
     /**
@@ -128,7 +198,7 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public Dimension minimumLayoutSize(Container parent) {
-        return null;
+        return layoutSize(parent, Component::getMinimumSize);
     }
 
     /**
@@ -140,4 +210,25 @@ public class CalcLayout implements LayoutManager2 {
     public void layoutContainer(Container parent) {
 
     }
+
+    public Dimension layoutSize(Container parent, Function<Component, Dimension> function){
+        int height;
+        int width;
+
+        height = this.components.values().stream().map(function).mapToInt(comp -> comp.height).max().orElseThrow();
+        width = this.components.entrySet().stream().mapToInt(entry ->{
+            if(entry.getKey().getColumn() == 1 && entry.getKey().getRow() == 1)
+                return (function.apply(entry.getValue()).width - (ROWS - 1) * componentGap) / ROWS;
+            return function.apply(entry.getValue()).width;
+        }).max().orElseThrow();
+
+        Insets insets = parent.getInsets();
+
+        height = height * ROWS + componentGap * (ROWS - 1) + insets.top + insets.bottom;
+        width = width * COLUMNS + componentGap * (COLUMNS - 1) + insets.left + insets.right;
+
+        return new Dimension(width, height);
+
+    }
+
 }
