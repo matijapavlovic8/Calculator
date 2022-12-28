@@ -208,7 +208,36 @@ public class CalcLayout implements LayoutManager2 {
      */
     @Override
     public void layoutContainer(Container parent) {
+        Objects.requireNonNull(parent, "Parent container can't be null!");
+        int height = components
+            .values()
+            .stream()
+            .map(c -> c.getMaximumSize().height)
+            .max(Integer::compareTo)
+            .orElseThrow(CalcLayoutException::new);
+        int width = components
+            .values()
+            .stream()
+            .map(c -> c.getMaximumSize().width)
+            .max(Integer::compareTo)
+            .orElseThrow(CalcLayoutException::new);
+        width *= parent.getWidth() / preferredLayoutSize(parent).getWidth();
+        height *= parent.getHeight() / preferredLayoutSize(parent).getHeight();
+        width += 2;
+        height++;
 
+        for (Map.Entry<RCPosition, Component> entry : components.entrySet()) {
+            RCPosition position = entry.getKey();
+            Component comp = entry.getValue();
+
+            if (position.getColumn() == 1 && position.getRow() == 1) {
+                comp.setBounds(0, 0, 5 * width + 4 * componentGap, height);
+                continue;
+            }
+
+            comp.setBounds((position.getColumn() - 1) * (width + componentGap), (position.getRow() - 1) *
+                (height + componentGap), width, height);
+        }
     }
 
     public Dimension layoutSize(Container parent, Function<Component, Dimension> function){

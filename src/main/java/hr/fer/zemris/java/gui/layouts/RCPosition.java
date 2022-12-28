@@ -56,9 +56,10 @@ public class RCPosition {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof RCPosition that)) {
+        if (!(o instanceof RCPosition)) {
             return false;
         }
+        RCPosition that = (RCPosition) o;
         return row == that.row && column == that.column;
     }
 
