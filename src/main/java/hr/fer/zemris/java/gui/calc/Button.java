@@ -62,9 +62,9 @@ public class Button extends JButton {
     }
 
     private void setDisplay(){
-        setBackground(Color.CYAN);
+        setBackground(Color.decode("#C1D0E8"));
         setText(this.displayedLabel);
-        setForeground(Color.lightGray);
+        setForeground(Color.BLACK);
         addActionListener(operation);
     }
 

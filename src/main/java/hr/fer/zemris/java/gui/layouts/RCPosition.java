@@ -44,7 +44,7 @@ public class RCPosition {
         String[] splits = text.split(",");
         try {
             int rows = Integer.parseInt(splits[0]);
-            int columns = Integer.parseInt(splits[1]);
+            int columns = Integer.parseInt(splits[1].trim());
             return new RCPosition(rows, columns);
         } catch (NumberFormatException e){
             throw new CalcLayoutException(e.getMessage());

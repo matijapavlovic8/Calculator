@@ -104,14 +104,13 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void setValue(double value) {
-        this.editable = false;
         if(value < 0){
             this.negative = true;
             value *= -1;
         }
         this.inputValue = value;
         this.input = inputValue.toString();
-        this.displayedValue = null;
+        this.displayedValue = input;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -134,8 +133,10 @@ public class CalcModelImpl implements CalcModel {
     public void clear() {
         this.editable = true;
         this.inputValue = 0.;
-        this.input = null;
+        this.input = "";
         this.negative = false;
+        this.displayedValue = null;
+        listeners.forEach(l -> l.valueChanged(this));
     }
 
     /**
@@ -179,6 +180,7 @@ public class CalcModelImpl implements CalcModel {
         } else {
             input += ".";
         }
+        this.displayedValue = input;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -192,12 +194,12 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void insertDigit(int digit) throws CalculatorInputException, IllegalArgumentException {
-        if(!this.editable)
-            throw new CalculatorInputException("Calculator is not editable!");
         if(digit < 0 || digit > 9)
             throw new IllegalArgumentException("Only single digit, positive numbers can be passed as arguments!");
         if(input.isEmpty()){
             input = String.valueOf(digit);
+            displayedValue = input;
+            listeners.forEach(l -> l.valueChanged(this));
         } else {
             String newInput = input + String.valueOf(digit);
             try{
@@ -205,7 +207,10 @@ public class CalcModelImpl implements CalcModel {
             } catch (NumberFormatException ignored){
                 throw new CalculatorInputException("Can't parse given number!");
             }
+            input = newInput;
+            displayedValue = input;
             listeners.forEach(l -> l.valueChanged(this));
+
         }
     }
 
@@ -275,6 +280,8 @@ public class CalcModelImpl implements CalcModel {
         if(displayedValue == null || input.equals("0") || input.isEmpty()){
             return "0";
         }
+        if(input.endsWith(".0"))
+            input = input.substring(0, input.length() - 3);
         StringBuilder sb = new StringBuilder();
         if(negative)
             sb.append("-");
