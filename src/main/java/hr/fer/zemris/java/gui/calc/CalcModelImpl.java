@@ -11,21 +11,20 @@ import java.util.function.DoubleBinaryOperator;
  * @author MatijaPav
  */
 public class CalcModelImpl implements CalcModel {
-
     /**
      * List of {@code CalcValueListeners}
      */
     private List<CalcValueListener> listeners;
 
     /**
-     * Current operation.
+     * Pending operation.
      */
-    private DoubleBinaryOperator currOperation;
+    private DoubleBinaryOperator pendingOperation;
 
     /**
      * Currently displayed result.
      */
-    private String displayedValue;
+    private String frozenValue;
 
     /**
      * Input.
@@ -45,7 +44,7 @@ public class CalcModelImpl implements CalcModel {
     /**
      * Current operand.
      */
-    private Double currentOperand;
+    private Double activeOperand;
 
     /**
      * Indicates if the number is negative.
@@ -104,13 +103,11 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void setValue(double value) {
-        if(value < 0){
-            this.negative = true;
-            value *= -1;
-        }
-        this.inputValue = value;
+        this.negative = value < 0;
+        this.inputValue = Math.abs(value);
         this.input = inputValue.toString();
-        this.displayedValue = input;
+        this.frozenValue = null;
+        this.editable = false;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -131,11 +128,10 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void clear() {
-        this.editable = true;
         this.inputValue = 0.;
         this.input = "";
-        this.negative = false;
-        this.displayedValue = null;
+        this.frozenValue = null;
+        this.editable = true;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -145,10 +141,9 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void clearAll() {
+        this.activeOperand = null;
+        this.pendingOperation = null;
         this.clear();
-        this.currentOperand = null;
-        this.currOperation = null;
-        this.displayedValue = null;
     }
 
     /**
@@ -157,11 +152,10 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void swapSign() throws CalculatorInputException {
-        if(!this.editable)
+        if(!this.isEditable())
             throw new CalculatorInputException("Calculator is not editable!");
-
-        this.negative = !this.negative;
-        this.displayedValue = null;
+        this.negative = !negative;
+        this.frozenValue = null;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -172,15 +166,12 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void insertDecimalPoint() throws CalculatorInputException {
-        if(!isEditable() || this.input == null ||this.input.contains("."))
+        if(!isEditable() || this.input.isEmpty() || this.input.contains("."))
             throw new CalculatorInputException("Can't place decimal point!");
 
-        if(this.input.isEmpty()){
-            this.input = "0.";
-        } else {
-            input += ".";
-        }
-        this.displayedValue = input;
+        this.input += ".";
+        this.inputValue = Double.parseDouble(input);
+        this.frozenValue = null;
         listeners.forEach(l -> l.valueChanged(this));
     }
 
@@ -196,22 +187,21 @@ public class CalcModelImpl implements CalcModel {
     public void insertDigit(int digit) throws CalculatorInputException, IllegalArgumentException {
         if(digit < 0 || digit > 9)
             throw new IllegalArgumentException("Only single digit, positive numbers can be passed as arguments!");
-        if(input.isEmpty()){
-            input = String.valueOf(digit);
-            displayedValue = input;
-            listeners.forEach(l -> l.valueChanged(this));
-        } else {
-            String newInput = input + String.valueOf(digit);
-            try{
-                inputValue = Double.parseDouble(newInput);
-            } catch (NumberFormatException ignored){
-                throw new CalculatorInputException("Can't parse given number!");
-            }
-            input = newInput;
-            displayedValue = input;
-            listeners.forEach(l -> l.valueChanged(this));
+        if(!this.editable)
+            throw new CalculatorInputException("Calculator is not editable!");
 
-        }
+        String s = (this.input + digit);
+        s = s.replaceFirst("^0+(?!(\\.|$))", "");
+
+        double newValue = Double.parseDouble(s);
+        if(Double.isNaN(newValue) || Double.isInfinite(newValue))
+            throw new CalculatorInputException("The new value cannot be NaN or infinite!");
+
+        this.input = s;
+        this.inputValue = newValue;
+        this.frozenValue = null;
+        listeners.forEach(l -> l.valueChanged(this));
+
     }
 
     /**
@@ -220,7 +210,7 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public boolean isActiveOperandSet() {
-        return this.currentOperand != null;
+        return this.activeOperand != null;
     }
 
     /**
@@ -230,7 +220,9 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public double getActiveOperand() throws IllegalStateException {
-        return this.currentOperand;
+        if(activeOperand == null)
+            throw new IllegalStateException();
+        return this.activeOperand;
     }
 
     /**
@@ -241,9 +233,7 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void setActiveOperand(double activeOperand) {
-        this.currentOperand = activeOperand;
-        this.editable = false;
-        listeners.forEach(l -> l.valueChanged(this));
+        this.activeOperand = activeOperand;
     }
 
     /**
@@ -251,8 +241,7 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void clearActiveOperand() {
-        this.currentOperand = null;
-        listeners.forEach(l -> l.valueChanged(this));
+        this.activeOperand = null;
     }
 
     /**
@@ -261,7 +250,7 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public DoubleBinaryOperator getPendingBinaryOperation() {
-        return currOperation;
+        return pendingOperation;
     }
 
     /**
@@ -271,20 +260,17 @@ public class CalcModelImpl implements CalcModel {
      */
     @Override
     public void setPendingBinaryOperation(DoubleBinaryOperator op) {
-        this.currOperation = op;
-        listeners.forEach(l -> l.valueChanged(this));
+        this.pendingOperation = op;
     }
 
     @Override
     public String toString(){
-        if(displayedValue == null || input.equals("0") || input.isEmpty()){
-            return "0";
-        }
-        if(input.endsWith(".0"))
-            input = input.substring(0, input.length() - 3);
         StringBuilder sb = new StringBuilder();
         if(negative)
             sb.append("-");
+        if(input.isEmpty()){
+            sb.append("0");
+        }
         sb.append(input);
 
         return sb.toString();

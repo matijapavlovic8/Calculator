@@ -4,6 +4,7 @@ import hr.fer.zemris.java.gui.layouts.CalcLayout;
 
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
 import java.util.List;
@@ -35,20 +36,21 @@ public class Calculator extends JFrame {
     /**
      * List of {@link Button} with inverse.
      */
-    private List<Button> inverseButtons;
+    private final List<Button> inverseButtons;
 
     /**
      * Instantiates a new {@code Calculator}
      */
     public Calculator(){
+        super();
         this.calcModel = new CalcModelImpl();
         this.stack = new Stack<>();
         this.inverseButtons = new ArrayList<>();
         setLocation(100, 100);
+        setSize(750, 500);
         setTitle("JCalculator");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         this.initGUI();
-        pack();
     }
 
     /**
@@ -66,7 +68,6 @@ public class Calculator extends JFrame {
         addOperatorButtons(panel);
         panel.add(equalsButton(), "1, 6");
         addOtherButtons(panel);
-        cp.setPreferredSize(panel.getPreferredSize());
         cp.add(panel);
     }
 
@@ -76,9 +77,11 @@ public class Calculator extends JFrame {
      */
     private JLabel createResDisplay(){
         JLabel display = new JLabel(calcModel.toString());
+        display.setMaximumSize(new Dimension(10, 1));
         display.setFont(display.getFont().deriveFont(30f));
         display.setOpaque(true);
         display.setBackground(Color.YELLOW);
+        display.setVerticalAlignment(SwingConstants.CENTER);
         display.setHorizontalAlignment(SwingConstants.RIGHT);
         calcModel.addCalcValueListener(model -> display.setText(model.toString()));
         return display;
@@ -156,7 +159,11 @@ public class Calculator extends JFrame {
             } catch (EmptyStackException ignored){}
         }), "4, 7");
 
-        panel.add(new Button("push", e -> this.stack.push(calcModel.getValue())), "3, 7");
+        panel.add(new Button("push", e -> {
+            this.stack.push(calcModel.getValue());
+            calcModel.clear();
+        })
+        , "3, 7");
     }
 
     /**
@@ -250,8 +257,8 @@ public class Calculator extends JFrame {
     private Button equalsButton(){
         return new Button("=", e -> {
             if(calcModel.getPendingBinaryOperation() != null && calcModel.isActiveOperandSet()){
-                System.out.println(calcModel.getActiveOperand());
-                calcModel.setValue(calcModel.getPendingBinaryOperation().applyAsDouble(calcModel.getActiveOperand(), calcModel.getValue()));
+                double res = calcModel.getPendingBinaryOperation().applyAsDouble(calcModel.getActiveOperand(), calcModel.getValue());
+                calcModel.setValue(res);
                 calcModel.setPendingBinaryOperation(null);
             }
         });
@@ -263,12 +270,11 @@ public class Calculator extends JFrame {
     private void operatorAction(){
         if(calcModel.getPendingBinaryOperation() == null){
             calcModel.setActiveOperand(calcModel.getValue());
-            calcModel.setValue(calcModel.getValue());
-        }
-        else if(calcModel.isActiveOperandSet()){
-           double res = calcModel.getPendingBinaryOperation().applyAsDouble(calcModel.getActiveOperand(), calcModel.getValue());
-           calcModel.setValue(res);
-           calcModel.setActiveOperand(calcModel.getValue());
+            calcModel.clear();
+        } else if(calcModel.isActiveOperandSet()){
+            double res = calcModel.getPendingBinaryOperation().applyAsDouble(calcModel.getActiveOperand(), calcModel.getValue());
+            calcModel.setActiveOperand(res);
+            calcModel.clear();
         }
     }
 
