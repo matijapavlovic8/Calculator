@@ -7,6 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.geom.Rectangle2D;
 import java.util.Objects;
 import javax.swing.JComponent;
 
@@ -18,7 +19,7 @@ public class BarChartComponent extends JComponent {
     /**
      * Displayed {@link BarChart}
      */
-    private BarChart chart;
+    private final BarChart chart;
 
     /**
      * Creates a {@link BarChartComponent}.
@@ -33,18 +34,12 @@ public class BarChartComponent extends JComponent {
         super.paintComponent(g);
 
         Graphics2D g2d = (Graphics2D) g;
-        Insets insets = getInsets();
-        Dimension dim = getSize();
+
+    }
+
+    private void drawYAxisText(Graphics2D g2d){
         FontMetrics fm = g2d.getFontMetrics();
-
-        int height = dim.height - insets.top - insets.bottom;
-        int width = dim.width - insets.left - insets.right;
-
-        Rectangle area = new Rectangle(insets.left, insets.top, width, height);
-
-        g2d.setColor(Color.red);
-        g2d.fillRect(area.x, area.y, area.width, area.height);
-
+        Rectangle2D rect = fm.getStringBounds(chart.getyDesc(), g2d);
 
     }
 }
